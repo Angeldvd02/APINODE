@@ -22,6 +22,27 @@ ruta.get('/customers', function(req, res) {
     });
 });
 
+ruta.get('/customers/orders', (req, res) => {
+    const sql = 'SELECT * FROM customers order by customerNumber';
+    conexion.query(sql, (error, results) => {
+        if (error) throw error;
+        if (results.length > 0) {
+            results.forEach(customer => {
+                const sql = `SELECT * FROM orders WHERE customerNumber = ${customer.customerNumber}`;
+                conexion.query(sql, (error, orders) => {
+                    if (error) throw error;
+                    customer.orders = orders;
+                    if (results.indexOf(customer) === results.length - 1) {
+                        res.json(results);
+                    }
+                });
+            });
+        } else {
+            res.send('No hay resultados');
+        }
+    });
+});
+
 // Obtener un customer por su número
 ruta.get('/customers/:customerNumber', function(req, res) {
     let sql = "SELECT * FROM customers WHERE customerNumber = ?";
