@@ -3,10 +3,10 @@
 const mysql = require('mysql');
 const conexion = mysql.createConnection(
     {
-        host:'localhost',
-        user:'root',
-        password:'',
-        database:'classicmodels'
+        host:'mysql-angelpacheco.alwaysdata.net',
+        user:'379438_angel',
+        password:'12062003Angel',
+        database:'angelpacheco_classicmodels'
     }
 
 );
