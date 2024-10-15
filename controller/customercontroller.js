@@ -55,6 +55,25 @@ ruta.get('/customers/:customerNumber', function(req, res) {
     });
 });
 
+ruta.get('/customers/:customerNumber/orders', (req, res) => {
+    const { customerNumber } = req.params;
+    const sql = `SELECT * FROM customers WHERE customerNumber = ${customerNumber}`;
+    conexion.query(sql, (error, result) => {
+        if (error) throw error;
+        if (result.length > 0) {
+            const sql = `SELECT * FROM orders WHERE customerNumber = ${customerNumber}`;
+            conexion.query(sql, (error, orders) => {
+                if (error) throw error;
+                result[0].orders = orders;
+                res.json(result);
+            });
+        } else {
+            res.send('No hay resultados');
+        }
+    });
+}
+);
+
 // Eliminar un customer por su número
 ruta.delete('/customers/:customerNumber', function(req, res) {
     let sql = "DELETE FROM customers WHERE customerNumber = ?";
