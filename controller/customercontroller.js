@@ -23,17 +23,52 @@ ruta.get('/customers', function(req, res) {
 });
 
 ruta.get('/customers/orders', (req, res) => {
-    const sql = 'SELECT * FROM customers order by customerNumber';
+    const sql = 'SELECT * FROM customers ORDER BY customerNumber';
     conexion.query(sql, (error, results) => {
         if (error) throw error;
         if (results.length > 0) {
+            let processedCustomers = 0;
             results.forEach(customer => {
-                const sql = `SELECT * FROM orders WHERE customerNumber = ${customer.customerNumber}`;
-                conexion.query(sql, (error, orders) => {
+                const sqlOrders = `SELECT orderNumber, 
+                                          DATE_FORMAT(orderDate, '%d-%m-%Y') as orderDate, 
+                                          status 
+                                   FROM orders 
+                                   WHERE customerNumber = ${customer.customerNumber}`;
+                
+                conexion.query(sqlOrders, (error, orders) => {
                     if (error) throw error;
-                    customer.orders = orders;
-                    if (results.indexOf(customer) === results.length - 1) {
-                        res.json(results);
+                    
+                    let processedOrders = 0;
+                    customer.orders = [];
+
+                    // Para cada orden, obtenemos el total
+                    orders.forEach(order => {
+                        const sqlTotal = `SELECT SUM(quantityOrdered * priceEach) AS total 
+                                          FROM orderdetails 
+                                          WHERE orderNumber = ${order.orderNumber}`;
+                        
+                        conexion.query(sqlTotal, (error, totalResults) => {
+                            if (error) throw error;
+                            
+                            order.total = parseFloat(totalResults[0].total).toFixed(2); // Agregamos el total a la orden
+                            customer.orders.push(order);
+                            
+                            processedOrders++;
+                            if (processedOrders === orders.length) {
+                                processedCustomers++;
+                                if (processedCustomers === results.length) {
+                                    res.json(results); // Respondemos solo cuando todos los clientes y sus órdenes estén procesados
+                                }
+                            }
+                        });
+                    });
+
+                    // Si el cliente no tiene órdenes, procedemos al siguiente cliente
+                    if (orders.length === 0) {
+                        processedCustomers++;
+                        if (processedCustomers === results.length) {
+                            res.json(results);
+                        }
                     }
                 });
             });
@@ -42,6 +77,8 @@ ruta.get('/customers/orders', (req, res) => {
         }
     });
 });
+
+
 
 // Obtener un customer por su número
 ruta.get('/customers/:customerNumber', function(req, res) {
@@ -53,26 +90,56 @@ ruta.get('/customers/:customerNumber', function(req, res) {
         }
         res.json(rows);
     });
+   
 });
 
 ruta.get('/customers/:customerNumber/orders', (req, res) => {
     const { customerNumber } = req.params;
-    const sql = `SELECT * FROM customers WHERE customerNumber = ${customerNumber}`;
-    conexion.query(sql, (error, result) => {
+    const sqlCustomer = `SELECT * FROM customers WHERE customerNumber = ${customerNumber}`;
+    
+    conexion.query(sqlCustomer, (error, result) => {
         if (error) throw error;
         if (result.length > 0) {
-            const sql = `SELECT * FROM orders WHERE customerNumber = ${customerNumber}`;
-            conexion.query(sql, (error, orders) => {
+            const sqlOrders = `SELECT orderNumber, 
+                                      DATE_FORMAT(orderDate, '%d-%m-%Y') as orderDate, 
+                                      status 
+                               FROM orders 
+                               WHERE customerNumber = ${customerNumber}`;
+            
+            conexion.query(sqlOrders, (error, orders) => {
                 if (error) throw error;
-                result[0].orders = orders;
-                res.json(result);
+                
+                let processedOrders = 0;
+                result[0].orders = [];
+
+                orders.forEach(order => {
+                    const sqlTotal = `SELECT SUM(quantityOrdered * priceEach) AS total 
+                                      FROM orderdetails 
+                                      WHERE orderNumber = ${order.orderNumber}`;
+                    
+                    conexion.query(sqlTotal, (error, totalResults) => {
+                        if (error) throw error;
+                        
+                        order.total = parseFloat(totalResults[0].total).toFixed(2); // Agregar el total a cada orden
+                        result[0].orders.push(order);
+
+                        processedOrders++;
+                        if (processedOrders === orders.length) {
+                            res.json(result); // Respondemos cuando todas las órdenes han sido procesadas
+                        }
+                    });
+                });
+
+                if (orders.length === 0) {
+                    res.json(result); // Si no hay órdenes
+                }
             });
         } else {
             res.send('No hay resultados');
         }
     });
-}
-);
+});
+
 
 // Eliminar un customer por su número
 ruta.delete('/customers/:customerNumber', function(req, res) {
